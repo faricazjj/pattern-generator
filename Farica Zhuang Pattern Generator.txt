@@ -1,0 +1,269 @@
+//Farica Zhuang
+//Pattern Generator program
+
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <math.h>
+
+using namespace std;
+
+/* Program class uses arrays to generate triangular patterns according to the 
+ * specified input that ranges from 0 - 255. The width of the patterns are
+ * restriction to 80 characters long.
+ */
+
+class Automaton
+{
+private:
+   static const int RULES_SIZE = 8;
+   static const int DEFAULT_RULES_SIZE = 8;
+   static const int DEFAULT_WIDTH_SIZE = 79;
+
+   bool rules[RULES_SIZE];
+   string thisGen;
+   string extremeBit; // bit, "*" or " ", implied everywhere "outside"
+   int displayWidth;  // an odd number so it can be perfectly centered
+
+public:
+   static const int MAX_DISPLAY_WIDTH = 121;
+
+   Automaton(int rule);
+   string toStringCurrentGen();
+   bool setRule(int newRule);      // change rule set
+   void resetFirstGen();
+   bool setDisplayWidth(int width);
+   void propagateNewGeneration();
+};
+
+
+int main()
+{
+   string userInput;
+   int rule, k;
+
+   // get rule from user
+   do
+   {
+      cout << "Enter Rule (0 - 255): ";
+      getline(cin, userInput);
+      //convert to int
+      istringstream iss(userInput);
+      iss >> rule;
+   } while (rule < 0 || rule > 255);
+
+   // create automaton with this rule and single central dot
+   Automaton aut(rule);
+
+   // now show it
+   cout << "   start"  << endl;
+   for (k = 0; k < 100; k++)
+   {
+      cout << aut.toStringCurrentGen() << endl;
+      aut.propagateNewGeneration();
+   }
+   cout << "   end"  << endl;
+
+
+   return 0;
+}
+
+//constructor takes the rule (as an int).
+Automaton::Automaton(int rule)
+{
+   //Through the mutator, below, we'll sanitize rule
+   if(!setRule(rule))
+   {
+      rule = DEFAULT_RULES_SIZE;
+      resetFirstGen();
+      setDisplayWidth(DEFAULT_WIDTH_SIZE);
+   }
+
+   else
+   {
+      resetFirstGen();
+      setDisplayWidth(DEFAULT_WIDTH_SIZE);
+   }
+   
+}
+
+//returns a string consisting of the current generation, thisGen,
+// If thisGen is smaller than displayWidth, it is positioned
+//in the center of the larger returnString, with the excess padded by extremeBit
+//characters.
+string Automaton::toStringCurrentGen()
+{
+   string tempString, displayString, tempChar;
+   int padLength1, padLength2, i;
+
+   displayString = "";
+
+   if( thisGen.length() <= displayWidth )
+   {
+      //thisGen.length will always be odd
+      padLength1 = (DEFAULT_WIDTH_SIZE - thisGen.length())/2;
+      for(i = 0; i < padLength1 ; i++)
+      {
+         tempString = tempString + " ";
+      }
+
+      tempString = tempString + thisGen;
+
+      for(i = 0; i < padLength1 ; i++)
+      {
+         tempString = tempString + " ";
+      }
+      displayString = tempString;
+   }
+//If thisGen is longer than displayWidth, it has to be truncated
+   else
+   {
+      padLength2 = (thisGen.length() - displayWidth)/2;
+      tempString = thisGen.substr(padLength2, padLength2 + displayWidth);
+      tempString.resize(displayWidth);
+      displayString = tempString;
+   }
+
+   return displayString;
+}
+
+//mutator
+//converts the int newRule, a number from 0-255, to an array of eight bools
+//this must sanitize the int so that only values in the legal range 0-255
+bool Automaton::setRule(int newRule)
+{
+   if (newRule < 0 || newRule >255)
+   {
+      return false;
+   }
+
+   else
+   {
+      for(int i = 0; i < RULES_SIZE; i++)
+      {
+         if(newRule%2 == 0)
+         {
+            rules[i] = false;
+         }
+
+         else
+         {
+            rules[i] = true;
+         }
+         newRule = newRule/2;
+      }
+   }
+   return true;
+}
+
+//set thisGen to * and extremeBit to a space
+void Automaton::resetFirstGen()
+{
+   thisGen = "*";
+   extremeBit = " ";
+}
+
+//with each generation, keep the width to the number of generation so that it
+//creates a triangle
+void Automaton::propagateNewGeneration()
+{
+   string nextGen,threeBinary, threeExtreme, firstChar, secondChar,
+         thirdChar;
+   int toDecimal;
+   bool valid;
+   nextGen = "";
+
+   //append two extremeBits to each side of thisGen in order to provide it with
+   //enough bits (or chars) on each end needed by rule.
+
+   thisGen = extremeBit + extremeBit + thisGen + extremeBit + extremeBit;
+
+   //We then apply rule in a loop to the new, larger, thisGen.
+   for (int i = 0 ; i < thisGen.length()-2; i++)
+   {
+      stringstream ss;
+      toDecimal = 0;
+      threeBinary = "";
+
+      //convert to decimal
+
+      firstChar = thisGen.at(i);
+      secondChar = thisGen.at(i+1);
+      thirdChar = thisGen.at(i+2);
+
+      if(firstChar == "*")
+      {
+         toDecimal = toDecimal + pow (2, 2);
+      }
+
+      if(secondChar == "*")
+      {
+         toDecimal = toDecimal + pow (2, 1);
+      }
+
+      if(thirdChar == "*")
+      {
+         toDecimal = toDecimal + pow (2, 0);
+      }
+
+      valid = rules[toDecimal];
+
+      if(valid == true)
+      {
+         nextGen = nextGen + "*";
+      }
+      else
+      {
+         nextGen = nextGen + " ";
+      }
+   }
+   //apply rule to three consecutive extremeBits to figure out what the new
+   //extremeBit will be for the next generation (" " or "*"?)
+   threeExtreme = extremeBit + extremeBit + extremeBit;
+   toDecimal = 0;
+   for(int k=0; k< threeExtreme.length() ; k++)
+   {
+      if(threeExtreme.at(k) =='*')
+      {
+         toDecimal = toDecimal + pow (2, 2-k);
+      }
+   }
+
+   valid = rules[toDecimal];
+
+   if(valid == true)
+   {
+      extremeBit = "*";
+   }
+   else
+   {
+      extremeBit =  " ";
+   }
+
+   thisGen = nextGen;
+}
+
+//Mutator
+//only odd widths are allowed (for centering purposes).
+bool Automaton::setDisplayWidth(int width)
+{
+   //if width is invalid, return false
+   if(width > MAX_DISPLAY_WIDTH )
+   {
+      return false;
+   }
+
+   //check if width is odd
+   if(width % 2 == 1)
+   {
+      displayWidth = width;
+      return true;
+   }
+
+   //if width is even, make it odd
+   else
+   {
+      displayWidth = width--;
+      return false;
+   }
+}
